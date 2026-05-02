@@ -1,0 +1,5 @@
+# PAM configuration file for hyprlock
+# Face unlock via howdy, falls back to password
+
+auth      sufficient  /usr/lib/security/pam_howdy.so
+auth      required    pam_unix.so try_first_pass

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# Waits for hyprlock to render, then sends Enter via ydotool to trigger PAM.
+# pam_howdy.so activates the IR camera and scans for a known face.
+# If recognized: instant unlock. If not: user types password as fallback.
+
+sleep 1
+
+if pidof hyprlock > /dev/null 2>&1; then
+    ydotool key 28:1 28:0
+fi
