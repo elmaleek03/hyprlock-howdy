@@ -205,12 +205,27 @@ python /usr/lib/howdy/compare.py $USER  # direct test, no GUI needed
 
 Your PAM config is wrong. Make sure `/etc/pam.d/hyprlock` uses the minimal config (see step 7). Do NOT include `system-login`.
 
-### ydotool permission denied
+### ydotool permission denied / face unlock stops working after reboot
 
 ```bash
 ls -la /dev/uinput  # should be root:input 0660
 groups              # should include 'input'
 systemctl --user status ydotool.service  # should be active
+```
+
+If `/dev/uinput` is `root:root 0600`, the udev rule isn't applying. Fix:
+
+```bash
+sudo chmod 0660 /dev/uinput && sudo chgrp input /dev/uinput
+systemctl --user reset-failed ydotool.service
+systemctl --user start ydotool.service
+```
+
+The install script creates a systemd override that adds a 2-second delay before ydotool starts, giving udev time to apply permissions. If it still fails after reboot, check:
+
+```bash
+cat /etc/udev/rules.d/80-uinput.rules
+# Should contain: KERNEL=="uinput", SUBSYSTEM=="misc", OPTIONS+="static_node=uinput", ...
 ```
 
 If you just added yourself to the input group, log out and back in.

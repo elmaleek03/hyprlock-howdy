@@ -146,15 +146,11 @@ else
     warn "Added $USER to input group. You may need to re-login for this to take effect."
 fi
 
-# Create udev rule for uinput
-if [ ! -f /etc/udev/rules.d/80-uinput.rules ]; then
-    echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' | sudo tee /etc/udev/rules.d/80-uinput.rules >/dev/null
-    sudo udevadm control --reload-rules
-    sudo udevadm trigger
-    success "uinput udev rule created"
-else
-    success "uinput udev rule already exists"
-fi
+# Create udev rule for uinput (static_node ensures permissions apply at boot)
+echo 'KERNEL=="uinput", SUBSYSTEM=="misc", OPTIONS+="static_node=uinput", TAG+="uaccess", GROUP="input", MODE="0660"' | sudo tee /etc/udev/rules.d/80-uinput.rules >/dev/null
+sudo udevadm control --reload-rules
+sudo udevadm trigger /dev/uinput 2>/dev/null || sudo udevadm trigger
+success "uinput udev rule installed"
 
 # Ensure uinput module is loaded
 sudo modprobe uinput
@@ -167,8 +163,19 @@ fi
 sudo chmod 0660 /dev/uinput 2>/dev/null
 sudo chgrp input /dev/uinput 2>/dev/null
 
+# Create systemd override so ydotool waits for uinput to be ready
+mkdir -p ~/.config/systemd/user/ydotool.service.d
+cat > ~/.config/systemd/user/ydotool.service.d/override.conf << 'EOF'
+[Service]
+ExecStartPre=/bin/sleep 2
+Restart=on-failure
+RestartSec=3
+EOF
+systemctl --user daemon-reload
+
 # Enable ydotool user service
 systemctl --user enable ydotool.service
+systemctl --user reset-failed ydotool.service 2>/dev/null || true
 systemctl --user start ydotool.service 2>/dev/null || true
 success "ydotool service enabled"
 
